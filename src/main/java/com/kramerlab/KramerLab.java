@@ -8,7 +8,7 @@ import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.Locale;
 
-/** KramerLab 3x3: resolución de sistemas lineales mediante la regla de Cramer. */
+/** KramerLab: resolución de sistemas lineales 2x2 y 3x3 mediante la regla de Cramer. */
 public final class KramerLab {
     private static final Color BG = new Color(14, 18, 32);
     private static final Color PANEL = new Color(23, 29, 48);
@@ -21,6 +21,11 @@ public final class KramerLab {
     private static final Font MONO = new Font(Font.MONOSPACED, Font.PLAIN, 14);
     private final JTextField[][] a = new JTextField[3][3];
     private final JTextField[] b = new JTextField[3];
+    private final JLabel[] variableLabels = new JLabel[3];
+    private JLabel equalsLabel;
+    private final JLabel format = new JLabel();
+    private final JComboBox<String> dimensionSelector = new JComboBox<>(new String[]{"2 × 2", "3 × 3"});
+    private final JPanel grid = new JPanel(new GridBagLayout());
     private final JTextArea output = new JTextArea();
     private final JLabel status = new JLabel("Ingresa los coeficientes y pulsa Resolver sistema.");
     private final DecimalFormat df;
@@ -33,7 +38,7 @@ public final class KramerLab {
     }
 
     private void buildUi() {
-        JFrame frame = new JFrame("KramerLab 3x3 | Regla de Cramer");
+        JFrame frame = new JFrame("KramerLab | Regla de Cramer");
         frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         frame.setMinimumSize(new Dimension(820, 700));
         frame.setSize(980, 800);
@@ -50,7 +55,7 @@ public final class KramerLab {
         JLabel eyebrow = new JLabel("MATEMÁTICAS · ÁLGEBRA LINEAL");
         eyebrow.setForeground(GREEN);
         eyebrow.setFont(new Font("SansSerif", Font.BOLD, 11));
-        JLabel title = new JLabel("KramerLab 3x3");
+        JLabel title = new JLabel("KramerLab");
         title.setForeground(TEXT);
         title.setFont(new Font("SansSerif", Font.BOLD, 30));
         JLabel subtitle = new JLabel("Resuelve sistemas de ecuaciones con la regla de Cramer");
@@ -66,21 +71,27 @@ public final class KramerLab {
 
         JPanel matrixPanel = panel();
         matrixPanel.setLayout(new BorderLayout(0, 14));
-        JLabel matrixTitle = sectionTitle("Sistema de ecuaciones");
-        matrixPanel.add(matrixTitle, BorderLayout.NORTH);
-        JPanel grid = new JPanel(new GridBagLayout());
+        JPanel matrixHeader = new JPanel(new BorderLayout(12, 0));
+        matrixHeader.setOpaque(false);
+        matrixHeader.add(sectionTitle("Sistema de ecuaciones"), BorderLayout.WEST);
+        dimensionSelector.setFont(BODY);
+        dimensionSelector.setSelectedIndex(1);
+        matrixHeader.add(dimensionSelector, BorderLayout.EAST);
+        matrixPanel.add(matrixHeader, BorderLayout.NORTH);
         grid.setOpaque(false);
         GridBagConstraints c = new GridBagConstraints();
         c.insets = new Insets(5, 6, 5, 6);
         c.fill = GridBagConstraints.HORIZONTAL;
         c.weightx = 1;
-        String[] vars = {"x", "y", "z", "="};
+        String[] vars = {"x", "y", "z"};
         for (int col = 0; col < 4; col++) {
             c.gridx = col; c.gridy = 0;
-            JLabel label = new JLabel(vars[col], SwingConstants.CENTER);
+            JLabel label = new JLabel(col == 3 ? "=" : vars[col], SwingConstants.CENTER);
             label.setForeground(col == 3 ? GREEN : MUTED);
             label.setFont(new Font("SansSerif", Font.BOLD, 14));
             grid.add(label, c);
+            if (col < 3) variableLabels[col] = label;
+            else equalsLabel = label;
         }
         for (int row = 0; row < 3; row++) {
             c.gridy = row + 1;
@@ -96,7 +107,6 @@ public final class KramerLab {
             }
         }
         matrixPanel.add(grid, BorderLayout.CENTER);
-        JLabel format = new JLabel("Formato: ax + by + cz = d  ·  Acepta enteros y decimales.");
         format.setForeground(MUTED); format.setFont(new Font("SansSerif", Font.PLAIN, 12));
         matrixPanel.add(format, BorderLayout.SOUTH);
 
@@ -109,6 +119,10 @@ public final class KramerLab {
         solve.addActionListener(e -> solveSystem());
         example.addActionListener(e -> loadExample());
         clear.addActionListener(e -> clearAll());
+        dimensionSelector.addActionListener(e -> {
+            updateDimension();
+            output.setText("");
+        });
 
         JPanel resultPanel = panel();
         resultPanel.setLayout(new BorderLayout(0, 10));
@@ -123,8 +137,8 @@ public final class KramerLab {
         output.setBorder(new EmptyBorder(14, 14, 14, 14));
         output.setText("Aquí aparecerá el procedimiento completo:\n\n"
                 + "1. Determinante principal Δ = det(A).\n"
-                + "2. Determinantes Δx, Δy y Δz.\n"
-                + "3. Soluciones x = Δx/Δ, y = Δy/Δ, z = Δz/Δ.\n\n"
+                + "2. Determinantes modificados para las incógnitas elegidas.\n"
+                + "3. Soluciones mediante la regla de Cramer.\n\n"
                 + "Pulsa ‘Cargar ejemplo’ para probar el programa.");
         JScrollPane scroll = new JScrollPane(output);
         scroll.setBorder(new LineBorder(new Color(51, 62, 91), 1, true));
@@ -140,7 +154,34 @@ public final class KramerLab {
 
         status.setForeground(MUTED); status.setFont(new Font("SansSerif", Font.PLAIN, 12));
         root.add(status, BorderLayout.SOUTH);
+        updateDimension();
         frame.setVisible(true);
+    }
+
+    private int dimension() {
+        return dimensionSelector.getSelectedIndex() == 0 ? 2 : 3;
+    }
+
+    private void updateDimension() {
+        int size = dimension();
+        GridBagLayout layout = (GridBagLayout) grid.getLayout();
+        GridBagConstraints constraints = layout.getConstraints(equalsLabel);
+        constraints.gridx = size;
+        layout.setConstraints(equalsLabel, constraints);
+        variableLabels[2].setVisible(size == 3);
+        for (int row = 0; row < 3; row++) {
+            for (int col = 0; col < 3; col++) a[row][col].setVisible(row < size && col < size);
+            b[row].setVisible(row < size);
+            constraints = layout.getConstraints(b[row]);
+            constraints.gridx = size;
+            layout.setConstraints(b[row], constraints);
+        }
+        grid.revalidate();
+        grid.repaint();
+        format.setText(size == 2
+                ? "Formato: ax + by = c  ·  Acepta enteros y decimales."
+                : "Formato: ax + by + cz = d  ·  Acepta enteros y decimales.");
+        status.setText("Seleccionado sistema de " + size + " × " + size + ".");
     }
 
     private JPanel panel() {
@@ -175,13 +216,20 @@ public final class KramerLab {
     }
 
     private void loadExample() {
+        clearAll();
         double[][] values = {{2, 1, -1}, {-3, -1, 2}, {-2, 1, 2}};
         double[] rhs = {8, -11, -3};
-        for (int i = 0; i < 3; i++) {
-            for (int j = 0; j < 3; j++) a[i][j].setText(df.format(values[i][j]));
+        if (dimension() == 2) {
+            values = new double[][]{{2, 1}, {-3, -1}};
+            rhs = new double[]{5, -4};
+        }
+        for (int i = 0; i < dimension(); i++) {
+            for (int j = 0; j < dimension(); j++) a[i][j].setText(df.format(values[i][j]));
             b[i].setText(df.format(rhs[i]));
         }
-        status.setText("Ejemplo cargado: solución esperada x = 2, y = 3, z = -1.");
+        status.setText(dimension() == 2
+                ? "Ejemplo cargado: solución esperada x = 1, y = 3."
+                : "Ejemplo cargado: solución esperada x = 2, y = 3, z = -1.");
         solveSystem();
     }
 
@@ -196,36 +244,46 @@ public final class KramerLab {
 
     private void solveSystem() {
         try {
-            double[][] matrix = new double[3][3];
-            double[] rhs = new double[3];
-            for (int i = 0; i < 3; i++) {
-                for (int j = 0; j < 3; j++) matrix[i][j] = parse(a[i][j].getText(), "coeficiente fila " + (i + 1) + ", columna " + (j + 1));
+            int size = dimension();
+            double[][] matrix = new double[size][size];
+            double[] rhs = new double[size];
+            String[] vars = {"x", "y", "z"};
+            for (int i = 0; i < size; i++) {
+                for (int j = 0; j < size; j++) matrix[i][j] = parse(a[i][j].getText(), "coeficiente fila " + (i + 1) + ", columna " + (j + 1));
                 rhs[i] = parse(b[i].getText(), "término independiente fila " + (i + 1));
             }
             StringBuilder s = new StringBuilder();
             s.append("SISTEMA ORIGINAL\n");
-            for (int i = 0; i < 3; i++) s.append(equation(matrix[i], rhs[i])).append('\n');
+            for (int i = 0; i < size; i++) s.append(equation(matrix[i], rhs[i])).append('\n');
             double delta = det(matrix);
             s.append("\nPASO 1 · DETERMINANTE PRINCIPAL\nΔ = det(A) = ").append(fmt(delta)).append("\n");
-            double[][] mx = replaceColumn(matrix, rhs, 0);
-            double[][] my = replaceColumn(matrix, rhs, 1);
-            double[][] mz = replaceColumn(matrix, rhs, 2);
-            double dx = det(mx), dy = det(my), dz = det(mz);
             s.append("\nPASO 2 · DETERMINANTES MODIFICADOS\n");
-            s.append("Δx = det(Ax) = ").append(fmt(dx)).append('\n');
-            s.append("Δy = det(Ay) = ").append(fmt(dy)).append('\n');
-            s.append("Δz = det(Az) = ").append(fmt(dz)).append('\n');
+            double[] deltas = new double[size];
+            for (int col = 0; col < size; col++) {
+                deltas[col] = det(replaceColumn(matrix, rhs, col));
+                s.append("Δ").append(vars[col]).append(" = det(A").append(vars[col]).append(") = ")
+                        .append(fmt(deltas[col])).append('\n');
+            }
             s.append("\nPASO 3 · REGLA DE CRAMER\n");
             if (Math.abs(delta) < 1e-10) {
                 s.append("Δ = 0, por lo tanto no existe una solución única.\n");
                 s.append("El sistema puede ser incompatible o tener infinitas soluciones; se requiere analizarlo por otro método.\n");
                 status.setText("El determinante principal es cero: no hay solución única por Cramer.");
             } else {
-                double x = dx / delta, y = dy / delta, z = dz / delta;
-                s.append("x = Δx / Δ = ").append(fmt(dx)).append(" / ").append(fmt(delta)).append(" = ").append(fmt(x)).append('\n');
-                s.append("y = Δy / Δ = ").append(fmt(dy)).append(" / ").append(fmt(delta)).append(" = ").append(fmt(y)).append('\n');
-                s.append("z = Δz / Δ = ").append(fmt(dz)).append(" / ").append(fmt(delta)).append(" = ").append(fmt(z)).append('\n');
-                s.append("\nSOLUCIÓN FINAL\n(x, y, z) = (").append(fmt(x)).append(", ").append(fmt(y)).append(", ").append(fmt(z)).append(")\n");
+                double[] solution = new double[size];
+                s.append('\n');
+                for (int i = 0; i < size; i++) {
+                    solution[i] = deltas[i] / delta;
+                    s.append(vars[i]).append(" = Δ").append(vars[i]).append(" / Δ = ")
+                            .append(fmt(deltas[i])).append(" / ").append(fmt(delta)).append(" = ")
+                            .append(fmt(solution[i])).append('\n');
+                }
+                s.append("\nSOLUCIÓN FINAL\n(");
+                for (int i = 0; i < size; i++) {
+                    if (i > 0) s.append(", ");
+                    s.append(vars[i]).append(" = ").append(fmt(solution[i]));
+                }
+                s.append(")\n");
                 status.setText("Sistema resuelto correctamente.");
             }
             output.setText(s.toString());
@@ -250,7 +308,7 @@ public final class KramerLab {
     private String equation(double[] row, double rhs) {
         StringBuilder s = new StringBuilder();
         String[] vars = {"x", "y", "z"};
-        for (int j = 0; j < 3; j++) {
+        for (int j = 0; j < row.length; j++) {
             if (j > 0) s.append(row[j] < 0 ? " - " : " + ");
             else if (row[j] < 0) s.append('-');
             s.append(fmt(Math.abs(row[j]))).append(vars[j]);
@@ -259,15 +317,17 @@ public final class KramerLab {
     }
 
     private double[][] replaceColumn(double[][] original, double[] rhs, int col) {
-        double[][] copy = new double[3][3];
-        for (int i = 0; i < 3; i++) {
-            System.arraycopy(original[i], 0, copy[i], 0, 3);
+        int size = original.length;
+        double[][] copy = new double[size][size];
+        for (int i = 0; i < size; i++) {
+            System.arraycopy(original[i], 0, copy[i], 0, size);
             copy[i][col] = rhs[i];
         }
         return copy;
     }
 
     private double det(double[][] m) {
+        if (m.length == 2) return m[0][0] * m[1][1] - m[0][1] * m[1][0];
         return m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1])
              - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0])
              + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);

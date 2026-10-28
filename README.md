@@ -1,6 +1,6 @@
-# KramerLab 3x3 — Java multiplataforma
+# KramerLab — Java multiplataforma
 
-Aplicación de escritorio en Java Swing para resolver sistemas lineales de 3×3 mediante la regla de Cramer. No necesita bibliotecas externas.
+Aplicación de escritorio en Java Swing para resolver sistemas lineales de 2×2 o 3×3 mediante la regla de Cramer. No necesita bibliotecas externas.
 
 ## Requisitos
 
@@ -39,8 +39,9 @@ El JAR es multiplataforma porque Swing forma parte del JDK. El usuario debe tene
 
 ## Funciones
 
-- Matriz de coeficientes 3×3 y términos independientes.
-- Determinantes Δ, Δx, Δy y Δz.
+- Selector para sistemas de 2×2 o 3×3.
+- Matriz de coeficientes y términos independientes ajustada a la dimensión elegida.
+- Determinantes Δ y los determinantes modificados correspondientes a cada incógnita.
 - Procedimiento de Cramer y solución final.
 - Ejemplo precargado y botón para limpiar.
 - Interfaz oscura; admite números decimales con punto o coma.
